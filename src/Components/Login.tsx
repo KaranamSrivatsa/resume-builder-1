@@ -1,29 +1,39 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useDispatch, useSelector } from 'react-redux';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../Config/firebase';
+import { RootState } from '../store';
+import { loginStart, loginSuccess, loginFailure } from '../authSlice';
 
 const Login: React.FC = () => {
   const { register, handleSubmit, formState: { errors }, getValues } = useForm();
-  const navigate = useNavigate() 
-  const onSubmit = async () => {
-    // navigate('/about')
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { loading, error } = useSelector((state: RootState) => state.auth);
+
+  const onSubmit = () => {
     const { email, password } = getValues();
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("User logged in successfully!");
-      navigate('/about'); // Navigate to the /about page after successful login
-    } catch (error: any) {
-      console.error("Error logging in:", error.message);
-      if (error.code === 'auth/user-not-found') {
-        alert("No user found with this email.");
-      } else if (error.code === 'auth/wrong-password') {
-        alert("Incorrect password.");
-      } else {
-        alert("Error logging in. Please try again.");
-      }
-    }
+    dispatch(loginStart());
+
+    signInWithEmailAndPassword(auth, email, password)
+      .then(() => {
+        dispatch(loginSuccess({ email }));
+        console.log("User logged in successfully!");
+        navigate('/home');
+      })
+      .catch((error) => {
+        dispatch(loginFailure(error.message));
+        console.error("Error logging in:", error.message);
+        if (error.code === 'auth/user-not-found') {
+          alert("No user found with this email.");
+        } else if (error.code === 'auth/wrong-password') {
+          alert("Incorrect password.");
+        } else {
+          alert("Error logging in. Please try again.");
+        }
+      });
   };
 
   return (
@@ -32,6 +42,8 @@ const Login: React.FC = () => {
         <div className="absolute inset-0 transform -skew-y-6 bg-blue-300 shadow-sm"></div>
         <div className="relative bg-white p-8 shadow-lg rounded-lg transform transition-transform hover:scale-105">
           <h2 className="text-2xl font-bold text-center text-gray-700">Login</h2>
+          {loading && <p>Loading...</p>}
+          {error && <p className="text-red-600">{error}</p>}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
